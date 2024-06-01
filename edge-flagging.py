@@ -6,7 +6,7 @@ import os
 
 
 def get_speed_from_csv(directory):
-    '''Read all csv data in directory and return a tuple with the sensor id and its speed data '''
+    """Read all csv data in directory and return a tuple with the sensor id and its speed data"""
     speed_table = [] # Stores each sensor's id and speed matrix (device_id, Dataframe of speeds)
     min_num_days = float('inf')
     for filename in os.listdir(directory):
@@ -30,13 +30,13 @@ def get_speed_from_csv(directory):
     return speed_table
 
 def truncate_data(speed_table, min_num_days):
-    '''Truncate sensor data to ensure the same number of days in data based on the sensor with the least data'''
+    """Truncate sensor data to ensure the same number of days in data based on the sensor with the least data"""
     for i, (device_id, df) in enumerate(speed_table):
         speed_table[i] = (device_id, df[:min_num_days])
     return speed_table
 
 def calc_conf_interval(conf_interval_dict, speed_table):
-    '''Every day, calculate the confidence interval based on past 7 days of data for each sensor'''
+    """Every day, calculate the confidence interval based on past 7 days of data for each sensor"""
     # Iterate through each day, i (days are 0-indexed)
     num_days = speed_table[0][1].shape[0]
     for day in range(7, num_days+1):
@@ -63,7 +63,7 @@ def calc_conf_interval(conf_interval_dict, speed_table):
     return conf_interval_dict
 
 def flag(conf_interval_dict, speed_table):
-    '''Flag values if they're outside the confidence interval range. Returns a nested dictionary {#day : {sensor_id : np.array(288,)}}'''
+    """Flag values if they're outside the confidence interval range. Returns a nested dictionary {#day : {sensor_id : np.array(288,)}}"""
     flag_dict = {}
     num_days = speed_table[0][1].shape[0]
     num_time_points = speed_table[0][1].shape[1]
@@ -92,18 +92,18 @@ conf_interval_dict = calc_conf_interval({}, speed_table) # Nested dictionary. {#
 #         print(f"  Sensor: {sensor_key}")
 #         print(f"  Data: {data}")
 
-flag_dict = flag(conf_interval_dict, speed_table)
+flag_dict = flag(conf_interval_dict, speed_table) # Nested dictionary. {#day : {sensor_id : np.array(288,1)}} np.array contains binary indicating flagged status.
 # for day_key, day_value in flag_dict.items():
 #     print(f"Day key: {day_key}")
 #     for sensor_key, flags in day_value.items():
 #         print(f"  Sensor: {sensor_key}")
 #         print(f"  Flags: {flags}")
-#         print(flags.shape)
+#         #print(flags.shape)
 
-'''Record confidence interval dictionary'''
+"""Record confidence interval dictionary"""
 with open('Flagged Data/confidence_intervals.pkl', 'wb') as file:
     pickle.dump(conf_interval_dict, file)
 
-'''Record flagged data dictionary'''
+"""Record flagged data dictionary"""
 with open('Flagged Data/flagged_data.pkl', 'wb') as file:
     pickle.dump(flag_dict, file)
