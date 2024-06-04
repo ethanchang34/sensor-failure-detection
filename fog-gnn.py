@@ -7,11 +7,20 @@ from torch_geometric.nn import GCNConv
 import torch.nn.functional as F
 import networkx as nx
 from fastdtw import fastdtw
-# from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import euclidean
 import pickle
+import matplotlib.pyplot as plt
 
 with open('Flagged Data/flagged_data.pkl', 'rb') as file:
     flagged_data = pickle.load(file)
+
+# Calculate the split point based on 70%
+split_point = int(len(flagged_data) * 0.7)
+
+# Split the dictionary
+training_data = dict(list(flagged_data.items())[:split_point])
+test_data = dict(list(flagged_data.items())[split_point:])
+
 '''
 # sensor_data = flagged_data[7] # temporarily work with the first day of data
 
@@ -58,23 +67,22 @@ class GNN(torch.nn.Module):
         return x
 
 model = GNN()
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 def dtw_loss(output, time_series_flags):
     # Compute DTW distances between the output embeddings and the original sensor data
     dtw_total = 0
     for i in range(len(time_series_flags)):
         for j in range(i + 1, len(time_series_flags)):
-            distance, _ = fastdtw(output[i].detach().numpy(), output[j].detach().numpy()) #removed dist=euclidean
+            distance, _ = fastdtw(output[i].detach().numpy(), output[j].detach().numpy()) #REMOVED dist=euclidean
             original_distance, _ = fastdtw(time_series_flags[i], time_series_flags[j])
             dtw_total += (distance - original_distance) ** 2
     return dtw_total / (len(time_series_flags) * (len(time_series_flags) - 1) / 2)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
 # Training loop
 model.train()
 for epoch in range(num_epochs):  # Number of epochs
-    for day, day_data in flagged_data.items():
+    for day, day_data in training_data.items():
         # Extract sensor IDs and corresponding time series data
         sensor_ids = list(day_data.keys())
         time_series_flags = list(day_data.values())
@@ -98,5 +106,18 @@ for epoch in range(num_epochs):  # Number of epochs
 
 # Output node embeddings
 model.eval()
-embeddings = model(data)
-print(embeddings)
+node_embeddings = model.fc.weight.detach().numpy()
+print(node_embeddings)
+
+# Create a graph using the learned node embeddings
+G = nx.Graph()
+for i in range(num_sensors):
+    for j in range(i + 1, num_sensors):
+        G.add_edge(i, j, weight=euclidean(node_embeddings[i], node_embeddings[j]))
+
+# Plot the graph
+pos = nx.spring_layout(G)  # Position nodes using a spring layout
+nx.draw(G, pos, with_labels=True, font_weight='bold')
+labels = nx.get_edge_attributes(G, 'weight')
+nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
+plt.show()
