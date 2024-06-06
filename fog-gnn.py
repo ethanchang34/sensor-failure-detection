@@ -14,8 +14,16 @@ import matplotlib.pyplot as plt
 with open('Flagged Data/flagged_data.pkl', 'rb') as file:
     flagged_data = pickle.load(file)
 
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    device = torch.device('mps')
+else:
+    device = torch.device('cpu')
+print(device)
+
 # Calculate the split point based on 70%
-split_point = int(len(flagged_data) * 0.4)
+split_point = int(len(flagged_data) * 0.7)
 
 # Split the dictionary
 training_data = dict(list(flagged_data.items())[:split_point])
@@ -97,7 +105,7 @@ for epoch in range(num_epochs):  # Number of epochs
         sensor_ids = list(day_data.keys())
         # time_series_flags = list(day_data.values())
         time_series_flags = [torch.tensor(ts, dtype=torch.float32) for ts in day_data.values()]
-        
+
         # Create a fully connected graph for simplicity
         num_sensors = len(sensor_ids)
         adjacency_matrix = np.ones((num_sensors, num_sensors)) - np.eye(num_sensors)  # Fully connected minus self-loops
