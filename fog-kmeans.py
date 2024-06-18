@@ -9,13 +9,19 @@ with open('Flagged Data/flagged_data.pkl', 'rb') as file:
 
 num_sensors = 7 # REPLACE with dynamic code
 
+sensor_ids = flagged_data[next(iter(flagged_data))].keys()
+
 # Initialize an empty list to store flattened data
-flattened_data = {sensor_id: [] for sensor_id in range(num_sensors)}
+flattened_data = {sensor_id: [] for sensor_id in sensor_ids}
+print(flattened_data)
 
 for day, sensors_data in flagged_data.items():
     for sensor_id, sensor_values in sensors_data.items():
         flattened_data[sensor_id].extend(sensor_values)
 
 # Convert the flattened data into a 2D numpy array
-sensor_data = np.array([flattened_data[sensor_id] for sensor_id in range(num_sensors)])
+sensor_data = np.array([flattened_data[sensor_id] for sensor_id in sensor_ids])
+
+print(sensor_data)
+# print(sensor_data.shape)
 
