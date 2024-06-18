@@ -1,5 +1,6 @@
 import numpy as np
 from fastdtw import fastdtw
+from scipy.spatial.distance import euclidean
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 import pickle
@@ -24,4 +25,13 @@ sensor_data = np.array([flattened_data[sensor_id] for sensor_id in sensor_ids])
 
 print(sensor_data)
 # print(sensor_data.shape)
+
+def dtw_correlation(data):
+    '''Create a correlation matrix between sensors with the value being DTW distance'''
+    nsignals = len(data)
+    dtw_corrs = np.zeros([nsignals, nsignals])
+    for i in range(nsignals):
+        for j in range(nsignals):
+            distance, _ = fastdtw(data[i], data[j], dist=euclidean)
+            dtw_corrs[i, j] = distance
 
