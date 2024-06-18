@@ -11,16 +11,17 @@ from scipy.spatial.distance import euclidean
 import pickle
 import matplotlib.pyplot as plt
 
-with open('Flagged Data/flagged_data.pkl', 'rb') as file:
-    flagged_data = pickle.load(file)
-
 if torch.cuda.is_available():
     device = torch.device('cuda')
 elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
     device = torch.device('mps')
 else:
     device = torch.device('cpu')
-print(device)
+
+# print(f"Using device: {device}")
+
+with open('Flagged Data/flagged_data.pkl', 'rb') as file:
+    flagged_data = pickle.load(file)
 
 # Calculate the split point based on 70%
 split_point = int(len(flagged_data) * 0.7)
