@@ -1,10 +1,14 @@
+import pickle
 import numpy as np
-from scipy.spatial.distance import euclidean
 
-from fastdtw import fastdtw
+with open('Flagged Data/flagged_data.pkl', 'rb') as file:
+    flagged_data = pickle.load(file)
 
-x = np.array([[1,1], [2,2], [3,3], [4,4], [5,5]])
-y = np.array([[2,2], [3,3], [4,4]])
-distance, path = fastdtw(x, y, dist=euclidean)
-print(distance)
-print(path)
+sensor_ids = list(flagged_data[next(iter(flagged_data))].keys())
+
+num_sensors = len(sensor_ids)
+
+for day, data in flagged_data.items():
+    sensor_data = np.array(list(data.values()))
+    print(sensor_data)
+    print(sensor_data.shape)

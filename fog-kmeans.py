@@ -15,12 +15,14 @@ else:
 
 # print(f"Using device: {device}")
 
-with open('Flagged Data/flagged_data.pkl', 'rb') as file:
+# with open('Flagged Data/flagged_data.pkl', 'rb') as file:
+#     flagged_data = pickle.load(file)
+with open('Flagged Data/speed_dict.pkl', 'rb') as file:
     flagged_data = pickle.load(file)
 
-num_sensors = 7 # REPLACE with dynamic code
-
 sensor_ids = list(flagged_data[next(iter(flagged_data))].keys())
+
+num_sensors = len(sensor_ids)
 
 # Initialize an empty list to store flattened data
 flattened_data = {sensor_id: [] for sensor_id in sensor_ids}
@@ -40,20 +42,36 @@ def dtw_correlation(data):
     nsignals = len(data)
     dtw_corrs = np.zeros([nsignals, nsignals])
     for i in range(nsignals):
-        for j in range(nsignals):
+        for j in range(i+1, nsignals):
             print(i,j)
             distance, _ = fastdtw(data[i], data[j])
             dtw_corrs[i, j] = distance
+            dtw_corrs[j, i] = distance
     return dtw_corrs
 
 dtw_dists = dtw_correlation(sensor_data)
 print(dtw_dists)
 
-# Number of clusters
-num_clusters = 3
-kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(dtw_dists)
-# kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(sensor_data)
+# Elbow method to find the optimal number of clusters
+def plot_elbow_method(dtw_dists, max_clusters=num_sensors):
+    inertias = []
+    cluster_range = range(1, max_clusters + 1)
+    for k in cluster_range:
+        kmeans = KMeans(n_clusters=k, n_init='auto', random_state=0).fit(dtw_dists)
+        inertias.append(kmeans.inertia_)
 
+    plt.figure(figsize=(10, 6))
+    plt.plot(cluster_range, inertias, marker='o')
+    plt.xlabel('Number of Clusters')
+    plt.ylabel('Inertia')
+    plt.title('Elbow Method for Optimal Number of Clusters')
+    plt.show()
+
+plot_elbow_method(dtw_dists)
+
+# Number of clusters
+num_clusters = 2
+kmeans = KMeans(n_clusters=num_clusters, n_init='auto', random_state=0).fit(dtw_dists)
 
 # Get the cluster labels
 labels = kmeans.labels_
@@ -62,8 +80,10 @@ labels = kmeans.labels_
 print("Cluster Centers:\n", kmeans.cluster_centers_)
 
 # Visualize the clustering result
+x_positions = range(len(sensor_ids))
 for i in range(num_clusters):
-    plt.scatter(sensor_ids, kmeans.cluster_centers_[i], label=f'Cluster {i}')
+    plt.scatter(x_positions, kmeans.cluster_centers_[i], label=f'Cluster {i}')
+plt.xticks(ticks=x_positions, labels=sensor_ids)
 
 plt.legend()
 plt.xlabel('Sensor IDs')

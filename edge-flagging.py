@@ -64,13 +64,16 @@ def calc_conf_interval(conf_interval_dict, speed_table):
 
 def flag(conf_interval_dict, speed_table):
     """Flag values if they're outside the confidence interval range. Returns a nested dictionary {#day : {sensor_id : np.array(288,)}}"""
+    speed_dict = {}
     flag_dict = {}
     num_days = speed_table[0][1].shape[0]
     num_time_points = speed_table[0][1].shape[1]
     for idx, day in enumerate(range(7, num_days+1)):
         flag_dict[day] = {}
+        speed_dict[day] = {}
         for device_id, speed_matrix in speed_table:
             new_row = []
+            new_speed_row = []
             for time in range(num_time_points):
                 speed = speed_matrix.iloc[idx, time]
                 interval = conf_interval_dict[day][device_id][time]
@@ -78,9 +81,10 @@ def flag(conf_interval_dict, speed_table):
                     new_row.append(0)
                 else: # If value is outside threshold, flag it
                     new_row.append(1)
+                new_speed_row.append(speed)
             flag_dict[day][device_id] = np.array(new_row)
-    return flag_dict
-
+            speed_dict[day][device_id] = np.array(new_speed_row)
+    return (flag_dict, speed_dict)
 
 directory = 'DelDOT Data'
 speed_table = get_speed_from_csv(directory)
@@ -92,13 +96,17 @@ conf_interval_dict = calc_conf_interval({}, speed_table) # Nested dictionary. {#
 #         print(f"  Sensor: {sensor_key}")
 #         print(f"  Data: {data}")
 
-flag_dict = flag(conf_interval_dict, speed_table) # Nested dictionary. {#day : {sensor_id : np.array(288,1)}} np.array contains binary indicating flagged status.
+flag_dict, speed_dict = flag(conf_interval_dict, speed_table) # Nested dictionary. {#day : {sensor_id : np.array(288,1)}} np.array contains binary indicating flagged status.
 # for day_key, day_value in flag_dict.items():
 #     print(f"Day key: {day_key}")
 #     for sensor_key, flags in day_value.items():
 #         print(f"  Sensor: {sensor_key}")
 #         print(f"  Flags: {flags}")
 #         #print(flags.shape)
+
+"""Record speed table"""
+with open('Flagged Data/speed_dict.pkl', 'wb') as file:
+    pickle.dump(speed_dict, file)
 
 """Record confidence interval dictionary"""
 with open('Flagged Data/confidence_intervals.pkl', 'wb') as file:
