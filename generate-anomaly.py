@@ -5,17 +5,20 @@ import matplotlib.pyplot as plt
 
 anomaly_types = ["complete_failure", "bias", "drift", "accuracy_decline"]
 
-failure_rate = 0.05
+failure_rate = 0.05 # Arbitrary. Find real data to adjust the failure rate
 
 with open('Flagged Data/speed_dict.pkl', 'rb') as file:
-    flagged_data = pickle.load(file)
+    speed_data = pickle.load(file)
+
+anomaly_record = []
 
 def generate_anomalies():
-    for day, sensors_data in flagged_data.items():
+    for day, sensors_data in speed_data.items():
         for sensor_id, sensor_values in sensors_data.items():
             new_data = None
             if random.random() < failure_rate:
                 anomaly_type = random.choice(anomaly_types)
+                anomaly_record.append((day, sensor_id, anomaly_type))
                 print(f"Anomaly in sensor {sensor_id} on day {day}: {anomaly_type}")
                 
                 if anomaly_type == "complete_failure":
@@ -26,8 +29,9 @@ def generate_anomalies():
                     new_data = generate_drift(sensor_values)
                 elif anomaly_type == "accuracy_decline":
                     new_data = generate_accuracy_decline(sensor_values)
-            if new_data:
-                sensor_values = new_data
+            if new_data is not None:
+                sensors_data[sensor_id] = new_data
+    return speed_data
 
 def generate_complete_failure(day_data):
     '''This function generates a complete failure anomaly for a given day's sensor data.
@@ -73,3 +77,16 @@ def generate_accuracy_decline(day_data):
         noise = np.random.normal(0, variance)
         new_data[i] += noise
     return new_data
+
+speed_dict_with_anomaly = generate_anomalies()
+
+print("num anomalies:", len(anomaly_record))
+
+with open('Flagged Data/speed_dict_with_anomaly.pkl', 'wb') as file:
+    pickle.dump(speed_dict_with_anomaly, file)
+
+for day, sensor_id, anomaly_type in anomaly_record:
+    sensor_data = speed_dict_with_anomaly[day][sensor_id]
+    plt.plot(range(len(sensor_data)), sensor_data, label=f"Sensor {sensor_id}")
+    plt.title({anomaly_type})
+    plt.show()
