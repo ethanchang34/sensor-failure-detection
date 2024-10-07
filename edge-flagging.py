@@ -86,8 +86,7 @@ def flag(conf_interval_dict, speed_table):
             speed_dict[day][device_id] = np.array(new_speed_row)
     return (flag_dict, speed_dict)
 
-# directory = 'DelDOT Data'
-directory = 'New DelDOT Data'
+directory = 'DelDOT Data'
 speed_table = get_speed_from_csv(directory)
 
 conf_interval_dict = calc_conf_interval({}, speed_table) # Nested dictionary. {#day : {sensor_id : np.array(288,2)}} np.array contains top and bottom threshold values
