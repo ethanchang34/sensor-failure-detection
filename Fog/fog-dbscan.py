@@ -46,7 +46,7 @@ dtw_dists = dtw_correlation(sensor_data)
 print("DTW Distance Matrix:\n", dtw_dists)
 
 # Apply DBSCAN clustering using the precomputed DTW distance matrix
-dbscan = DBSCAN(metric="precomputed", eps=500, min_samples=2)  # You can tune 'eps' and 'min_samples'
+dbscan = DBSCAN(metric="precomputed", eps=80000, min_samples=2)  # You can tune 'eps' and 'min_samples'
 labels = dbscan.fit_predict(dtw_dists)
 
 # Print cluster labels
