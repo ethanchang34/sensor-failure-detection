@@ -46,8 +46,15 @@ dtw_dists = dtw_correlation(sensor_data)
 print("DTW Distance Matrix:\n", dtw_dists)
 
 # Apply DBSCAN clustering using the precomputed DTW distance matrix
-dbscan = DBSCAN(metric="precomputed", eps=80000, min_samples=2)  # You can tune 'eps' and 'min_samples'
+dbscan = DBSCAN(metric="precomputed", eps=15000, min_samples=2)  # You can tune 'eps' and 'min_samples'
 labels = dbscan.fit_predict(dtw_dists)
+
+# Create a dictionary to store sensor IDs and their corresponding cluster labels
+clustered_sensors = {sensor_id: label for sensor_id, label in zip(sensor_ids, labels)}
+
+# Save the dictionary as a pickle file
+with open('Flagged Data/clustered_sensors.pkl', 'wb') as file:
+    pickle.dump(clustered_sensors, file)
 
 # Print cluster labels
 for sensor_id, label in zip(sensor_ids, labels):

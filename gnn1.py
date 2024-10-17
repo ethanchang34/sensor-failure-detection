@@ -20,6 +20,11 @@ else:
 with open('Flagged Data/flagged_data.pkl', 'rb') as file:
     data = pickle.load(file)
 
+with open('Flagged Data/clustered_sensors.pkl', 'rb') as file:
+    clustered_sensors = pickle.load(file)
+
+print(clustered_sensors)  # Dictionary of sensor IDs and cluster labels
+
 def dtw_distance(ts_a, ts_b):
     len_a, len_b = len(ts_a), len(ts_b)
     dtw_matrix = np.zeros((len_a + 1, len_b + 1))
