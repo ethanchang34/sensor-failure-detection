@@ -46,7 +46,7 @@ dtw_dists = dtw_correlation(sensor_data)
 print("DTW Distance Matrix:\n", dtw_dists)
 
 # Apply DBSCAN clustering using the precomputed DTW distance matrix
-dbscan = DBSCAN(metric="precomputed", eps=15000, min_samples=2)  # You can tune 'eps' and 'min_samples'
+dbscan = DBSCAN(metric="precomputed", eps=16000, min_samples=3)  # You can tune 'eps' and 'min_samples'
 labels = dbscan.fit_predict(dtw_dists)
 
 # Create a dictionary to store sensor IDs and their corresponding cluster labels
@@ -69,9 +69,10 @@ for label, color in zip(unique_labels, colors):
     indices = [i for i, lbl in enumerate(labels) if lbl == label]
     plt.scatter(indices, np.zeros(len(indices)), c=[color], label=f'Cluster {label}', s=100)
 
-plt.xticks(ticks=range(len(sensor_ids)), labels=sensor_ids)
+plt.xticks(ticks=range(len(sensor_ids)), labels=sensor_ids, rotation=90)
 plt.legend()
 plt.xlabel('Sensor IDs')
 plt.ylabel('Cluster')
 plt.title('DBSCAN Clustering Result (DTW Distance)')
+plt.tight_layout()
 plt.show()
