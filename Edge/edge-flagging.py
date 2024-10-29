@@ -75,7 +75,7 @@ def flag(conf_interval_dict, speed_table):
             new_row = []
             new_speed_row = []
             for time in range(num_time_points):
-                speed = speed_matrix.iloc[idx, time]
+                speed = speed_matrix.iloc[idx+6, time]
                 interval = conf_interval_dict[day][device_id][time]
                 if speed >= interval[0] and speed <= interval[1]: # Flagging logic
                     new_row.append(0)
