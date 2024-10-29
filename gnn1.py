@@ -33,14 +33,18 @@ with open('Flagged Data/labels.pkl', 'rb') as file:
 print(clustered_sensors)  # Dictionary of sensor IDs and cluster labels
 
 # Convert labeling to 0 for normal and 1 for anomaly
-bin_label = {}
+bin_labels = {}
+label_mapping = {}
 for day, sensors in labels.items():
-    bin_label[day] = {}
-    for sensor_id, label in sensors.items():
-        if label == "normal":
-            bin_label[day][sensor_id] = 0
-        else:
-            bin_label[day][sensor_id] = 1
+    sensor_ids = list(sensors.keys())
+    label_mapping[day] = sensor_ids
+    day_labels = [0 if sensors[sensor_id] == "normal" else 1 for sensor_id in sensor_ids]
+    bin_labels[day] = torch.tensor(day_labels, dtype=torch.float)
+    # for sensor_id, label in sensors.items():
+    #     if label == "normal":
+    #         bin_labels[day][sensor_id] = 0
+    #     else:
+    #         bin_labels[day][sensor_id] = 1
 
 
 # def build_graph_for_day(day_data, day_labels):
@@ -113,14 +117,14 @@ for day, sensors in data.items():
 # print(f"Tensor shape: {tensor_data[day].shape}")
 # print(f"Sensor IDs for Day {day}:", sensor_id_mapping[day])  # Original sensor IDs
 print(tensor_data[7])
-print(bin_labels[7].values())
+print(bin_labels[7])
 
 # Create subsets based on day splits
 train_data = {day: (tensor_data[day], bin_labels[day]) for day in train_days}
 val_data = {val_day: (tensor_data[val_day], bin_labels[val_day]) for val_day in val_days}
 test_data = {test_day: (tensor_data[test_day], bin_labels[test_day]) for test_day in test_days}
-print(sensor_id_mapping[7])
-print(bin_labels.keys())
+# print(sensor_id_mapping[7]) # Ensure that the sensor_id_mappign and label_mapping are the same, meaning the x aligns with the correct y
+# print(label_mapping[7])
 print(train_data.keys())
 
 # Now you have train_data, val_data, and test_data
