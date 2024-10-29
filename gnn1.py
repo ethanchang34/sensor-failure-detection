@@ -32,19 +32,29 @@ with open('Flagged Data/labels.pkl', 'rb') as file:
 
 print(clustered_sensors)  # Dictionary of sensor IDs and cluster labels
 
-# Convert labeling to 0 for normal and 1 for anomaly
+# Initialize dictionaries to store tensors and mappings
+tensor_data = {}
+sensor_id_mapping = {}
+# Convert each day's sensor data to tensors and retain mappings
+for day, sensors in data.items():
+    sensor_ids = list(sensors.keys())
+    sensor_id_mapping[day] = sensor_ids  # Retain sensor ID mapping for each day
+    sensor_values = [sensors[sensor_id] for sensor_id in sensor_ids]
+    tensor_data[day] = torch.tensor(sensor_values, dtype=torch.float)
+
+# Initialize dictionaries to store tensors and mappings
 bin_labels = {}
 label_mapping = {}
+# Convert labeling to 0 for normal and 1 for anomaly
 for day, sensors in labels.items():
     sensor_ids = list(sensors.keys())
     label_mapping[day] = sensor_ids
     day_labels = [0 if sensors[sensor_id] == "normal" else 1 for sensor_id in sensor_ids]
     bin_labels[day] = torch.tensor(day_labels, dtype=torch.float)
-    # for sensor_id, label in sensors.items():
-    #     if label == "normal":
-    #         bin_labels[day][sensor_id] = 0
-    #     else:
-    #         bin_labels[day][sensor_id] = 1
+
+# Ensure that the sensor_id_mappign and label_mapping are the same, meaning the x aligns with the correct y
+# print(sensor_id_mapping[7])
+# print(label_mapping[7])
 
 
 # def build_graph_for_day(day_data, day_labels):
@@ -101,38 +111,21 @@ day_keys = list(data.keys())
 train_days, test_days = train_test_split(day_keys, test_size=0.2, random_state=42)
 train_days, val_days = train_test_split(train_days, test_size=0.25, random_state=42)  # 0.25 * 0.8 = 0.2
 
-# Initialize dictionaries to store tensors and mappings
-tensor_data = {}
-sensor_id_mapping = {}
-
-# Convert each day's sensor data to tensors and retain mappings
-for day, sensors in data.items():
-    sensor_ids = list(sensors.keys())
-    sensor_id_mapping[day] = sensor_ids  # Retain sensor ID mapping for each day
-    sensor_values = [sensors[sensor_id] for sensor_id in sensor_ids]
-    tensor_data[day] = torch.tensor(sensor_values, dtype=torch.float)
-
 # day = 7
 # print(f"Tensor for Day {day}:", tensor_data[day])  # Tensor with sensor data
 # print(f"Tensor shape: {tensor_data[day].shape}")
 # print(f"Sensor IDs for Day {day}:", sensor_id_mapping[day])  # Original sensor IDs
-print(tensor_data[7])
-print(bin_labels[7])
+# print(tensor_data[7])
+# print(bin_labels[7])
 
 # Create subsets based on day splits
 train_data = {day: (tensor_data[day], bin_labels[day]) for day in train_days}
 val_data = {val_day: (tensor_data[val_day], bin_labels[val_day]) for val_day in val_days}
 test_data = {test_day: (tensor_data[test_day], bin_labels[test_day]) for test_day in test_days}
-# print(sensor_id_mapping[7]) # Ensure that the sensor_id_mappign and label_mapping are the same, meaning the x aligns with the correct y
-# print(label_mapping[7])
-print(train_data.keys())
-
-# Now you have train_data, val_data, and test_data
-# print(f"Train days: {len(train_data)} | Validation days: {len(val_data)} | Test days: {len(test_data)}")
-
-# Split data for training
-# transform = RandomLinkSplit(is_undirected=True, add_negative_train_samples=False)
-# train_data, val_data, test_data = transform(day_7_graph)
+print(f"Train days: {len(train_data)} | Validation days: {len(val_data)} | Test days: {len(test_data)}")
+print("Training data days: ", train_data.keys())
+print("Validation data days: ", val_data.keys())
+print("Test data days: ", test_data.keys())
 
 class GNN(torch.nn.Module):
     def __init__(self, in_channels, out_channels):
