@@ -30,7 +30,7 @@ with open('Flagged Data/clustered_sensors.pkl', 'rb') as file:
 with open('Flagged Data/labels.pkl', 'rb') as file:
     labels = pickle.load(file)
 
-print(clustered_sensors)  # Dictionary of sensor IDs and cluster labels
+print("Clusters: ", clustered_sensors)  # Dictionary of sensor IDs and cluster labels
 
 # Initialize dictionaries to store tensors and mappings
 tensor_data = {}
@@ -40,7 +40,7 @@ for day, sensors in data.items():
     sensor_ids = list(sensors.keys())
     sensor_id_mapping[day] = sensor_ids  # Retain sensor ID mapping for each day
     sensor_values = [sensors[sensor_id] for sensor_id in sensor_ids]
-    tensor_data[day] = torch.tensor(sensor_values, dtype=torch.float)
+    tensor_data[day] = torch.tensor(np.array(sensor_values), dtype=torch.float)
 
 # Initialize dictionaries to store tensors and mappings
 bin_labels = {}
@@ -55,6 +55,13 @@ for day, sensors in labels.items():
 # Ensure that the sensor_id_mappign and label_mapping are the same, meaning the x aligns with the correct y
 # print(sensor_id_mapping[7])
 # print(label_mapping[7])
+
+# day = 7
+# print(f"Tensor for Day {day}:", tensor_data[day])  # Tensor with sensor data
+# print(f"Tensor Data shape: {tensor_data[day].shape}")
+# print(f"Tensor Labels shape: {bin_labels[day].shape}")
+# print(tensor_data[7])
+# print(bin_labels[7])
 
 
 # def build_graph_for_day(day_data, day_labels):
@@ -111,13 +118,6 @@ day_keys = list(data.keys())
 train_days, test_days = train_test_split(day_keys, test_size=0.2, random_state=42)
 train_days, val_days = train_test_split(train_days, test_size=0.25, random_state=42)  # 0.25 * 0.8 = 0.2
 
-# day = 7
-# print(f"Tensor for Day {day}:", tensor_data[day])  # Tensor with sensor data
-# print(f"Tensor shape: {tensor_data[day].shape}")
-# print(f"Sensor IDs for Day {day}:", sensor_id_mapping[day])  # Original sensor IDs
-# print(tensor_data[7])
-# print(bin_labels[7])
-
 # Create subsets based on day splits
 train_data = {day: (tensor_data[day], bin_labels[day]) for day in train_days}
 val_data = {val_day: (tensor_data[val_day], bin_labels[val_day]) for val_day in val_days}
@@ -148,21 +148,13 @@ class GNN(torch.nn.Module):
 
 sample_day = data[7]
 first_node = next(iter(sample_day.values()))  # Get the time series of the first node
-num_node_features = len(first_node)  # Number of features for each nod
-# model = GNN(in_channels=day_7_graph.num_node_features, out_channels=2)
+num_node_features = len(first_node)  # Number of features for each node
+# Initialize model with the correct number of input channels
 model = GNN(in_channels=num_node_features, out_channels=2)
-# # Get the number of features from a sample graph
-# sample_day = next(iter(train_data))  # Get an arbitrary key from train_data
-# num_node_features = train_data[sample_day]['x'].shape[1]  # Assuming 'x' holds node features
 
-# # Initialize model with the correct number of input channels
-# model = GNN(in_channels=num_node_features, out_channels=2)
-
-# # Prepare data for training
-# data = train_test_split_edges(day_7_graph)
-
-# Optimizer
+# Optimizer and criterion
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+# criterion = torch.nn.BCEWithLogitsLoss()
 criterion = torch.nn.CrossEntropyLoss()
 
 # def train():
@@ -197,14 +189,15 @@ criterion = torch.nn.CrossEntropyLoss()
 #     return loss
 
 # Training function
-def train_one_day(day_features, day_label):
+def train_one_day(day_features, day_labels):
     model.train()
     optimizer.zero_grad()
 
     graph_structure.x = day_features  # Update node features for the day's data
     z = model(graph_structure.x, graph_structure.edge_index)  # Forward pass
 
-    loss = criterion(z, torch.tensor([day_label]))
+    day_labels = day_labels.long()
+    loss = criterion(z, day_labels)
     loss.backward()
     optimizer.step()
 
@@ -233,14 +226,21 @@ def evaluate(data):
     return accuracy
 
 # Testing function
-def test_one_day(day_features, day_label):
+def test_one_day(day_features, day_labels):
     model.eval()
     with torch.no_grad():
         graph_structure.x = day_features  # Update with test day features
         z = model(graph_structure.x, graph_structure.edge_index)
-        pred = z.argmax(dim=1).item()  # Predicted label for the day
 
-        return pred == day_label  # True if prediction matches label
+        # Convert day_labels to a tensor if it's not already
+        if not isinstance(day_labels, torch.Tensor):
+            day_labels = torch.tensor(day_labels, dtype=torch.long)  # Ensure day_labels is a tensor
+
+        pred = z.argmax(dim=1)  # Predicted labels for the day
+        correct = pred.eq(day_labels).sum().item()  # Count correct predictions
+        accuracy = correct / len(day_labels)  # Accuracy for this day
+
+        return accuracy
 
 # Testing over test days
 accuracy = sum(test_one_day(features, label) for features, label in test_data.values()) / len(test_data)
