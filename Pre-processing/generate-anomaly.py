@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 anomaly_types = ["complete_failure", "bias", "drift", "accuracy_decline"]
 
-failure_rate = 0.05 # Arbitrary. Find real data to adjust the failure rate
+failure_rate = 0.10 # Arbitrary. Find real data to adjust the failure rate
 
 with open('Flagged Data/speed_dict.pkl', 'rb') as file:
     speed_data = pickle.load(file)

@@ -63,48 +63,6 @@ for day, sensors in labels.items():
 # print(tensor_data[7])
 # print(bin_labels[7])
 
-
-# def build_graph_for_day(day_data, day_labels):
-#     nodes = list(day_data.keys())
-#     # edges = []
-#     # edge_weights = []
-
-#     node_features = []
-#     node_labels = []
-
-#     for node in nodes:
-#         ts_a = day_data[node]
-#         node_features.append(ts_a)  # Time series as features
-#         node_labels.append(1 if day_labels[node] != "normal" else 0)  # Binary label: 1 for anomaly, 0 for normal
-    
-#     # for i, node_a in enumerate(nodes):
-#     #     ts_a = day_data[node_a]
-#     #     node_features.append(ts_a)  # Time series as features
-#     #     node_labels.append(1 if day_labels[node_a] != "normal" else 0)  # Binary label: 1 for anomaly, 0 for normal
-        
-#     #     for j, node_b in enumerate(nodes):
-#     #         if i < j:
-#     #             ts_b = day_data[node_b]
-#     #             distance = dtw_distance(ts_a, ts_b)
-#     #             edges.append((i, j))
-#     #             edge_weights.append(distance)
-    
-#     # edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
-#     # edge_attr = torch.tensor(edge_weights, dtype=torch.float)
-
-#     edge_index = torch.tensor(
-#         [[i, j] for i in range(len(nodes)) for j in range(len(nodes)) if i != j], dtype=torch.long).t().contiguous()
-    
-#     x = torch.tensor(np.array(node_features), dtype=torch.float)  # Time series data as node features
-#     y = torch.tensor(node_labels, dtype=torch.long)  # Anomaly labels as target
-    
-#     # return Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
-#     print("Node Labels:", node_labels)
-#     return Data(x=x, edge_index=edge_index, y=y)
-
-# # Build Graph
-# day_7_graph = build_graph_for_day(data[7], labels[7])
-
 # Prepare the graph structure once (only nodes and edges)
 num_nodes = len(data[7])  # Replace with the actual number of nodes in your graph
 edge_index = torch.tensor(
@@ -132,9 +90,11 @@ class GNN(torch.nn.Module):
         super(GNN, self).__init__()
         self.conv1 = GCNConv(in_channels, 16)
         self.conv2 = GCNConv(16, out_channels)
+        # self.dropout = torch.nn.Dropout(p=0.3)
 
     def forward(self, x, edge_index):
         x = F.relu(self.conv1(x, edge_index))
+        # x = self.dropout(x)  # Add dropout for regularization
         x = self.conv2(x, edge_index)
         return F.log_softmax(x, dim=1)  # Softmax for classification
 
@@ -146,47 +106,49 @@ class GNN(torch.nn.Module):
     #     edge_index = torch.cat([pos_edge_index, neg_edge_index], dim=-1)
     #     return (z[edge_index[0]] * z[edge_index[1]]).sum(dim=-1)
 
+def compute_anomaly_metrics(preds, labels):
+    true_positives = ((preds == 1) & (labels == 1)).sum().item()
+    false_positives = ((preds == 1) & (labels == 0)).sum().item()
+    false_negatives = ((preds == 0) & (labels == 1)).sum().item()
+    true_negatives = ((preds == 0) & (labels == 0)).sum().item()
+
+    accuracy = (true_positives + true_negatives) / (true_positives + false_positives + false_negatives + true_negatives)
+    precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0.0
+    recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0.0
+    f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+
+    return accuracy, precision, recall, f1_score
+
 sample_day = data[7]
 first_node = next(iter(sample_day.values()))  # Get the time series of the first node
 num_node_features = len(first_node)  # Number of features for each node
 # Initialize model with the correct number of input channels
 model = GNN(in_channels=num_node_features, out_channels=2)
 
+# Count normal and anomaly labels in the training data to determine class weights
+normal_count = sum((labels == 0).sum().item() for _, labels in train_data.values())
+anomaly_count = sum((labels == 1).sum().item() for _, labels in train_data.values())
+
+# Calculate the anomaly ratio to determine weights
+normal_weight = len([label for day in train_data.values() for label in day[1] if label == 0])
+anomaly_weight = len([label for day in train_data.values() for label in day[1] if label == 1])
+total_weight = normal_weight + anomaly_weight
+
+# Inverse weights to prioritize anomalies (higher weight)
+weights = torch.tensor([1.0, total_weight / anomaly_weight])
+criterion = torch.nn.CrossEntropyLoss(weight=weights)
+
 # Optimizer and criterion
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 # criterion = torch.nn.BCEWithLogitsLoss()
-criterion = torch.nn.CrossEntropyLoss()
+# criterion = torch.nn.CrossEntropyLoss()
 
-# def train():
-#     model.train()
-#     optimizer.zero_grad()
-
-#     z = model(train_data.x, train_data.edge_index)  # Forward pass
-
-#     # Check the output shape and print it
-#     print(f"Output shape: {z.shape}")
-
-#     # Print the labels to check if they're None (This was an error I was having)
-#     # if train_data.y is None:
-#     #     print("Warning: train_data.y is None")
-#     # else:
-#     #     print(f"Labels shape: {train_data.y.shape}")
-#     #     print(f"Labels: {train_data.y}")
-    
-#     loss = criterion(z, train_data.y)  # Cross-entropy loss for classification
-
-#     # z = model.encode(train_data.x, train_data.edge_index)
-    
-#     # pos_pred = model.decode(z, train_data.pos_edge_index, train_data.neg_edge_index)
-#     # neg_pred = model.decode(z, train_data.neg_edge_index, train_data.neg_edge_index)
-    
-#     # pos_loss = -torch.log(pos_pred + 1e-15).mean()
-#     # neg_loss = -torch.log(1 - neg_pred + 1e-15).mean()
-#     # loss = pos_loss + neg_loss
-    
-#     loss.backward()
-#     optimizer.step()
-#     return loss
+def threshold_predictions(logits, threshold=0.6):
+    # Convert logits to probabilities
+    probs = F.softmax(logits, dim=1)
+    preds = torch.zeros_like(logits[:, 0], dtype=torch.long)
+    preds[probs[:, 1] > threshold] = 1  # Predict anomaly if probability > threshold
+    return preds
 
 # Training function
 def train_one_day(day_features, day_labels):
@@ -201,12 +163,14 @@ def train_one_day(day_features, day_labels):
     loss.backward()
     optimizer.step()
 
-    return loss.item()
+    # Calculate predictions and anomaly metrics
+    # preds = z.argmax(dim=1)
+    preds = threshold_predictions(z)
+    accuracy, precision, recall, f1_score = compute_anomaly_metrics(preds, day_labels)
 
-# for epoch in range(1, 101):
-#     loss = train()
-#     # print(f'Epoch {epoch}, Loss: {loss.item()}')
-#     print(f'Epoch {epoch}, Loss: {loss}')
+    print(f"Loss: {loss.item():.4f} | Acc: {accuracy:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f} | F1: {f1_score:.4f}")
+
+    return loss.item()
 
 # Training over multiple days
 for epoch in range(1,101):
@@ -214,15 +178,14 @@ for epoch in range(1,101):
         loss = train_one_day(features, bin_labels)
         print(f'Epoch {epoch}, Day {day}, Loss: {loss}')
 
-# model.eval()
 
 # Validation
 def evaluate(data):
     model.eval()
     with torch.no_grad():
         z = model(data.x, data.edge_index)  # Forward pass
-        pred = z.argmax(dim=1)  # Get predicted labels
-        accuracy = (pred == data.y).sum().item() / len(data.y)
+        preds = z.argmax(dim=1)  # Get predicted labels
+        accuracy = (preds == data.y).sum().item() / len(data.y)
     return accuracy
 
 # Testing function
@@ -236,27 +199,17 @@ def test_one_day(day_features, day_labels):
         if not isinstance(day_labels, torch.Tensor):
             day_labels = torch.tensor(day_labels, dtype=torch.long)  # Ensure day_labels is a tensor
 
-        pred = z.argmax(dim=1)  # Predicted labels for the day
-        correct = pred.eq(day_labels).sum().item()  # Count correct predictions
+        # preds = z.argmax(dim=1)  # Predicted labels for the day
+        preds = threshold_predictions(z)
+        correct = preds.eq(day_labels).sum().item()  # Count correct predictions
         accuracy = correct / len(day_labels)  # Accuracy for this day
+
+        # Calculate anomaly-focused metrics
+        accuracy, precision, recall, f1_score = compute_anomaly_metrics(preds, day_labels)
+        print(f"Test - Acc: {accuracy:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f} | F1: {f1_score:.4f}")
 
         return accuracy
 
 # Testing over test days
 accuracy = sum(test_one_day(features, label) for features, label in test_data.values()) / len(test_data)
 print(f'Overall Test Accuracy: {accuracy}')
-
-# # Calculate validation and test accuracy
-# val_accuracy = evaluate(val_data)
-# test_accuracy = evaluate(test_data)
-# print(f'Validation Accuracy: {val_accuracy}')
-# print(f'Test Accuracy: {test_accuracy}')
-
-# with torch.no_grad():
-#     z = model(test_data.x, test_data.edge_index)
-#     pred = z.argmax(dim=1)  # Get predicted labels
-#     accuracy = (pred == test_data.y).sum().item() / len(test_data.y)
-#     print(f'Accuracy: {accuracy}')
-#     # z = model.encode(test_data.x, test_data.edge_index)
-#     # pos_pred = model.decode(z, test_data.pos_edge_index, test_data.neg_edge_index)
-#     # neg_pred = model.decode(z, test_data.neg_edge_index, test_data.neg_edge_index)
