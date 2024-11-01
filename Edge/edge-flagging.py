@@ -113,5 +113,5 @@ with open('Flagged Data/confidence_intervals.pkl', 'wb') as file:
     pickle.dump(conf_interval_dict, file)
 
 """Record flagged data dictionary"""
-with open('Flagged Data/flagged_data.pkl', 'wb') as file:
+with open('Flagged Data/flagged_raw_data.pkl', 'wb') as file:
     pickle.dump(flag_dict, file)
