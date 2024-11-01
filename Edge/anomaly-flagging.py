@@ -12,13 +12,15 @@ with open('Flagged Data/speed_dict_with_anomaly.pkl', 'rb') as file:
 
 def flag_data(data):
     flagged_data = {}
-    count = 0
+    percent_flagged = {}
 
     for day, sensor_data in data.items():
         flagged_data[day] = {}
+        percent_flagged[day] = {}
 
         for sensor_id, values in sensor_data.items():
             flagged_data[day][sensor_id] = [None]*len(values)
+            count = 0
 
             for i, value in enumerate(values):
                     lower_bound = intervals[day][sensor_id][i][0]
@@ -30,7 +32,9 @@ def flag_data(data):
                     else:
                         flagged_data[day][sensor_id][i] = 0
 
-    print('count: ', count)
-    return flagged_data
+            percent_flagged[day][sensor_id] = count / len(values) # * 100
+
+    # return flagged_data
+    return percent_flagged
 
 flagged_data = flag_data(data)
