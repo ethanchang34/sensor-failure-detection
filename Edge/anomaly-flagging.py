@@ -38,3 +38,7 @@ def flag_data(data):
     return percent_flagged
 
 flagged_data = flag_data(data)
+
+"""Record flagged data"""
+with open('Flagged Data/flagged_with_anomaly.pkl', 'wb') as file:
+    pickle.dump(flagged_data, file)
