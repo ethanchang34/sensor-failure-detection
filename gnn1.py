@@ -18,11 +18,11 @@ else:
 
 # print(f"Using device: {device}")
 
-with open('Flagged Data/flagged_data.pkl', 'rb') as file:
-    flagged_data = pickle.load(file)
-
-with open('Flagged Data/speed_dict_with_anomaly.pkl', 'rb') as file:
+with open('Flagged Data/flagged_with_anomaly.pkl', 'rb') as file:
     data = pickle.load(file)
+
+# with open('Flagged Data/speed_dict_with_anomaly.pkl', 'rb') as file:
+    # data = pickle.load(file)
 
 with open('Flagged Data/clustered_sensors.pkl', 'rb') as file:
     clustered_sensors = pickle.load(file)
@@ -31,6 +31,12 @@ with open('Flagged Data/labels.pkl', 'rb') as file:
     labels = pickle.load(file)
 
 print("Clusters: ", clustered_sensors)  # Dictionary of sensor IDs and cluster labels
+clusters = {}
+for sensor_id, cluster_label in clustered_sensors.items():
+    if cluster_label not in clusters:
+        clusters[cluster_label] = []
+    clusters[cluster_label].append(sensor_id)
+print(clusters)
 
 # Initialize dictionaries to store tensors and mappings
 tensor_data = {}
@@ -39,7 +45,9 @@ sensor_id_mapping = {}
 for day, sensors in data.items():
     sensor_ids = list(sensors.keys())
     sensor_id_mapping[day] = sensor_ids  # Retain sensor ID mapping for each day
-    sensor_values = [sensors[sensor_id] for sensor_id in sensor_ids]
+    # sensor_values = [sensors[sensor_id] for sensor_id in sensor_ids]
+    sensor_values = [[sensors[sensor_id]] for sensor_id in sensor_ids]
+
     tensor_data[day] = torch.tensor(np.array(sensor_values), dtype=torch.float)
 
 # Initialize dictionaries to store tensors and mappings
@@ -119,11 +127,12 @@ def compute_anomaly_metrics(preds, labels):
 
     return accuracy, precision, recall, f1_score
 
-sample_day = data[7]
-first_node = next(iter(sample_day.values()))  # Get the time series of the first node
-num_node_features = len(first_node)  # Number of features for each node
+# sample_day = data[7]
+# first_node = next(iter(sample_day.values()))  # Get the time series of the first node
+# num_node_features = len(first_node)  # Number of features for each node
 # Initialize model with the correct number of input channels
-model = GNN(in_channels=num_node_features, out_channels=2)
+# model = GNN(in_channels=num_node_features, out_channels=2)
+model = GNN(in_channels=1, out_channels=2)
 
 # Count normal and anomaly labels in the training data to determine class weights
 normal_count = sum((labels == 0).sum().item() for _, labels in train_data.values())
@@ -164,11 +173,11 @@ def train_one_day(day_features, day_labels):
     optimizer.step()
 
     # Calculate predictions and anomaly metrics
-    # preds = z.argmax(dim=1)
-    preds = threshold_predictions(z)
+    preds = z.argmax(dim=1)
+    # preds = threshold_predictions(z)
     accuracy, precision, recall, f1_score = compute_anomaly_metrics(preds, day_labels)
 
-    print(f"Loss: {loss.item():.4f} | Acc: {accuracy:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f} | F1: {f1_score:.4f}")
+    # print(f"Loss: {loss.item():.4f} | Acc: {accuracy:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f} | F1: {f1_score:.4f}")
 
     return loss.item()
 
@@ -176,7 +185,7 @@ def train_one_day(day_features, day_labels):
 for epoch in range(1,101):
     for day, (features, bin_labels) in train_data.items():
         loss = train_one_day(features, bin_labels)
-        print(f'Epoch {epoch}, Day {day}, Loss: {loss}')
+        # print(f'Epoch {epoch}, Day {day}, Loss: {loss}')
 
 
 # Validation
@@ -207,6 +216,7 @@ def test_one_day(day_features, day_labels):
         # Calculate anomaly-focused metrics
         accuracy, precision, recall, f1_score = compute_anomaly_metrics(preds, day_labels)
         print(f"Test - Acc: {accuracy:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f} | F1: {f1_score:.4f}")
+        print(f"Acc: {accuracy*24:.4f}")
 
         return accuracy
 
