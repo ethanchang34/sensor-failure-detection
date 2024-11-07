@@ -59,7 +59,6 @@ for day, sensors in labels.items():
     label_mapping[day] = sensor_ids
     day_labels = [0 if sensors[sensor_id] == "normal" else 1 for sensor_id in sensor_ids]
     bin_labels[day] = torch.tensor(day_labels, dtype=torch.float)
-
 # Ensure that the sensor_id_mappign and label_mapping are the same, meaning the x aligns with the correct y
 # print(sensor_id_mapping[7])
 # print(label_mapping[7])
@@ -183,10 +182,9 @@ def train_one_day(day_features, day_labels):
 
 # Training over multiple days
 for epoch in range(1,101):
-    for day, (features, bin_labels) in train_data.items():
-        loss = train_one_day(features, bin_labels)
+    for day, (features, day_bin_labels) in train_data.items():
+        loss = train_one_day(features, day_bin_labels)
         # print(f'Epoch {epoch}, Day {day}, Loss: {loss}')
-
 
 # Validation
 def evaluate(data):
@@ -223,3 +221,59 @@ def test_one_day(day_features, day_labels):
 # Testing over test days
 accuracy = sum(test_one_day(features, label) for features, label in test_data.values()) / len(test_data)
 print(f'Overall Test Accuracy: {accuracy}')
+
+for cluster_label, sensor_ids in clusters.items():
+    if not sensor_ids:
+        continue
+
+    # day_data_for_cluster = {
+    #     day: torch.stack([day_data[sensor_id_mapping[day].index(sensor_id)]
+    #                       for sensor_id in sensor_ids])
+    #     for day, day_data in tensor_data.items()
+    # }
+    # bin_labels_for_cluster = {
+    #     # day: torch.stack([bin_labels[day][sensor_id_mapping[day].index(sensor_id)]
+    #     #                   for sensor_id in sensor_ids])
+    #     day: torch.stack([bin_labels[day][sensor_id_mapping[day].index(sensor_id)].item()
+    #     if bin_labels[day][sensor_id_mapping[day].index(sensor_id)].dim() == 0  # Check for 0-dim tensor
+    #     else bin_labels[day][sensor_id_mapping[day].index(sensor_id)]
+    #     for sensor_id in sensor_ids])
+    # }
+    day_data_for_cluster = {
+        day: torch.stack([tensor_data[day][sensor_id_mapping[day].index(sensor_id)] for sensor_id in sensor_ids]) for day, day_data in tensor_data.items()
+    }
+    bin_labels_for_cluster = {
+        day: torch.stack([bin_labels[day][sensor_id_mapping[day].index(sensor_id)] for sensor_id in sensor_ids]) for day, day_labels in bin_labels.items()
+    }
+
+    num_cluster_nodes = len(sensor_ids) # - 1
+    edge_index = torch.tensor(
+        [[i, j] for i in range(num_cluster_nodes) for j in range(num_cluster_nodes) if i != j],
+        dtype=torch.long
+    ).t().contiguous()
+    cluster_graph = Data(edge_index=edge_index)  # Use only the cluster-specific edge_index
+
+    print("x shape:", x.shape)
+    print("edge_index shape:", edge_index.shape)
+    print("max edge_index:", edge_index.max())
+
+    train_data = {day: (day_data_for_cluster[day], bin_labels_for_cluster[day]) for day in train_days}
+    val_data = {val_day: (day_data_for_cluster[val_day], bin_labels_for_cluster[val_day]) for val_day in val_days}
+    test_data = {test_day: (day_data_for_cluster[test_day], bin_labels_for_cluster[test_day]) for test_day in test_days}
+        
+    # Training over multiple days
+    for epoch in range(1,101):
+        for day, (features, bin_labels) in train_data.items():
+            loss = train_one_day(features, bin_labels)
+            # print(f'Epoch {epoch}, Day {day}, Loss: {loss}')
+            
+        # Update the graph structure with the day's features
+        cluster_graph.x = features
+        
+        # Train or test on this specific cluster for the day
+        loss = train_one_day(features, day_labels)  # Train function should work for this cluster-specific graph
+        print(f'Cluster {cluster_label}, Day {day}, Loss: {loss}')
+
+    # Testing over test days
+    accuracy = sum(test_one_day(features, label) for features, label in test_data.values()) / len(test_data)
+    print(f'Overall Test Accuracy: {accuracy}')
